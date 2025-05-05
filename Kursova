@@ -1,0 +1,71 @@
+import re
+from collections import Counter
+import matplotlib.pyplot as plt
+import numpy as np
+from scipy.stats import norm, expon, poisson
+
+def preprocess_text(text):
+    text = text.lower()  # зменшення до нижнього регістру
+    text = re.sub(r"[^\w\s]", "", text)  # видалення пунктуації
+    words = text.split()  # розбиття на слова
+    return words
+
+def build_frequency_dict(words):
+    word_counts = Counter(words)  # підрахунок частот слів
+    total_words = sum(word_counts.values())  # загальна кількість слів
+    sorted_counts = sorted(word_counts.values(), reverse=True)  # сортування частот за спаданням
+    return sorted_counts, word_counts  # повертаємо список частот та словник
+
+def zipf_law(rank, k=1):
+    return k / rank  # базова формула закону Ціпфа
+
+def plot_distributions(sorted_counts):
+    ranks = np.arange(1, len(sorted_counts) + 1)  # ранги слів (1, 2, 3, ...)
+    empirical_freq = np.array(sorted_counts) / sum(sorted_counts)  # емпіричні ймовірності
+
+    zipf_freq = np.array([zipf_law(r) for r in ranks])  # значення за законом Ціпфа
+    zipf_freq /= zipf_freq.sum()  # нормалізація
+
+    mu, sigma = norm.fit(ranks)  # оцінка параметрів нормального розподілу
+    normal_pdf = norm.pdf(ranks, mu, sigma)  # щільність імовірності
+    normal_pdf /= normal_pdf.sum()  # нормалізація
+
+    expon_pdf = expon.pdf(ranks, scale=1.0)  # щільність експоненційного розподілу
+    expon_pdf /= expon_pdf.sum()  # нормалізація
+
+    poisson_pmf = poisson.pmf(ranks, mu=5)  # ймовірність для розподілу Пуассона
+    poisson_pmf /= poisson_pmf.sum()  # нормалізація
+
+    plt.figure(figsize=(12, 8))
+    plt.plot(ranks, empirical_freq, label="Емпіричні частоти", linewidth=2)
+    plt.plot(ranks, zipf_freq, label="Закон Ціпфа", linestyle="--")
+    plt.plot(ranks, normal_pdf, label="Нормальний розподіл", linestyle=":")
+    plt.plot(ranks, expon_pdf, label="Експоненційний розподіл", linestyle="-.", color="orange")
+    plt.plot(ranks, poisson_pmf, label="Розподіл Пуассона", linestyle="dashdot", color="green")
+
+    plt.xlabel("Ранг слова")
+    plt.ylabel("Ймовірність")
+    plt.title("Порівняння емпіричного розподілу з теоретичними розподілами")
+    plt.legend()
+    plt.grid(True)
+    plt.tight_layout()
+    plt.show()
+
+if __name__ == "__main__":
+    text = """
+    Ймовірність – це чисельна міра можливості появи певної події. У лінгвістиці вона використовується для
+    визначення частоти вживання слів у текстах. Частотний словник дозволяє аналізувати, які слова зустрічаються
+    найчастіше, та робити статистичні висновки щодо структури мови. Частота слів дозволяє побачити закономірності
+    вживання, зокрема відповідність закону Ціпфа та іншим математичним моделям.
+    """
+
+    words = preprocess_text(text)  # обробка тексту
+    sorted_counts, word_counts = build_frequency_dict(words)  # побудова частотного словника
+
+    print("Загальна кількість слів у тексті:", sum(word_counts.values()))
+    print("Кількість унікальних слів:", len(word_counts))
+    print("\nТоп-10 найчастіших слів:")
+    for word, freq in word_counts.most_common(10):
+        print(f"{word}: {freq}")
+
+    plot_distributions(sorted_counts)  
